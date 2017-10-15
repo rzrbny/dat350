@@ -7,19 +7,13 @@ open import PropositionalLogic
 
 postulate comm-plus : (n m : Nat) -> n + m ≡ m + n
 postulate comm-mult : (n m : Nat) -> n * m ≡ m * n
-postulate assoc-mult : (a b c : Nat) -> (a * b) * c ≡ a * (b * c)
+postulate assoc-plus : (n m l : Nat) -> (n + m) + l ≡ n + (m + l)
+postulate assoc-mult : (n m l : Nat) -> (n * m) * l ≡ n * (m * l)
 
-{- equivalent relation for pairs of natural numbers -}
-
-{-
-a/b ~ c/d iff ad ≡ cb
--}
+{- equivalence relation for pairs of natural numbers -}
 
 data _~_ : Nat × Nat -> Nat × Nat -> Set where
   rel : {a b c d : Nat} -> a * (d + 1) ≡ c * (b + 1) -> < a , b > ~ < c , d >
-
-_/_ : (n m : Nat) -> Nat × Nat
-n / m = < n , m >
 
 refl~ : {p : Nat × Nat} -> p ~ p
 refl~ {< _ , _ >} = rel refl
@@ -86,8 +80,6 @@ lemma-3 a b c d e f x y = lemma-3-5 a b e f (lemma-3-4 a b d e f
 trans~ : {p q r : Nat × Nat} -> p ~ q -> q ~ r -> p ~ r
 trans~ {< a , b >} {< c , d >} {< e , f >} (rel x) (rel y) = rel (lemma-3 a (succ b) c d e (succ f) x y)
 
-cong~-mult : {n m k : Nat}{p : Nat × Nat} -> < n , m > ~ p -> < succ k * n , m + k + k * m > ~ p
-cong~-mult {n}{m}{k}{< a , b >} (rel x) = rel (trans (trans (assoc-mult (succ k) n (succ b)) (cong (\ y -> succ k * y) x)) {!-m -r!})
 
 {- equivalent class for above equivalence relation, rational numbers -}
 
@@ -103,19 +95,36 @@ denom (mkrat _ b _) = succ b
 rat : {n m : Nat} -> Rat n m -> Nat × Nat
 rat (mkrat a b _) = < a , b >
 
+eqc : {n m : Nat} -> Rat n m -> Nat × Nat
+eqc {n}{m} _ = < n , m >
+
 inject : (n : Nat) -> Rat n 0
 inject n = mkrat n 0 (rel refl)
+
+
+{- Some simple proofs -}
 
 rat-equiv : {n m : Nat} -> (p q : Rat n m) -> (rat p) ~ (rat q)
 rat-equiv (mkrat a b x) (mkrat c d y) = trans~ x (sym~ y)
 
+rat-equiv-class : {n m k l : Nat} -> (p : Rat n m) -> (q : Rat k l) -> (rat p) ~ (rat q) -> (eqc p) ~ (eqc q)
+rat-equiv-class {n}{m}{k}{l} (mkrat a b x) (mkrat c d y) z = trans~ (trans~ (sym~ x) z) y
+
+rat-equiv' : {n m : Nat} -> (p q : Rat n m) -> (eqc p) ~ (eqc q)
+rat-equiv' (mkrat a b x) (mkrat c d y) = rel refl
+
+
 injection-proof : {n m : Nat} -> rat (inject n) ~ rat (inject m) -> n ≡ m
 injection-proof (rel x) = x
 
+injection-proof' : {n m : Nat} -> eqc (inject n) ~ eqc (inject m) -> n ≡ m
+injection-proof' (rel x) = x
+
+
 {- Arithmetics of rational numbers -}
 
-lemma-*-1 : (a b c d : Nat) -> a ≡ b -> c ≡ d -> a * c ≡ b * d
-lemma-*-1 a .a c .c refl refl = refl
+lemma-*-1 : {a b c d : Nat} -> a ≡ b -> c ≡ d -> a * c ≡ b * d
+lemma-*-1 {a} {.a} {c} {.c} refl refl = refl
 
 lemma-*-2-1 : (b c : Nat) -> c * b ≡ b * c
 lemma-*-2-1 b c = comm-mult c b
@@ -129,10 +138,64 @@ lemma-*-2-3 a b c = trans (trans (assoc-mult a c b) (lemma-*-2-2 a b c)) (sym (a
 lemma-*-2 : (a b c d : Nat) -> a * b * c * d ≡ a * c * b * d
 lemma-*-2 a b c d = cong (λ x -> x * d) (sym (lemma-*-2-3 a b c))
 
-_r*_ : {n m k l : Nat} -> (p : Rat n m) -> (q : Rat k l) -> Rat (n * k) (m * l + m + l)
-_r*_ {n}{m}{k}{l} (mkrat a b (rel x)) (mkrat c d (rel y)) = mkrat (a * c) (b * d) (rel {!!})
+lemma-*-3 : (b c : Nat) -> succ b * succ c ≡ (b * c + b + c + 1)
+lemma-*-3 b c = trans (comm-plus (succ b) (succ b * c))
+                      (cong succ (trans (cong (λ x -> x + b)
+                                        (comm-mult (succ b) c))
+                                        (trans (trans (assoc-plus c (c * b) b)
+                                        (comm-plus c (c * b + b))) (cong (λ x -> x + b + c) (comm-mult c b)))))
 
-------------------------------------------
+_r*_ : {n m k l : Nat} -> (p : Rat n m) -> (q : Rat k l) -> Rat (n * k) (m * l + m + l)
+_r*_ {n}{m}{k}{l} (mkrat a b (rel x)) (mkrat c d (rel y)) = mkrat (a * c) (b * d + b + d)
+     (rel (trans (trans
+       (sym
+       (trans (trans (sym (assoc-mult (a * succ m) c (succ l))) (lemma-*-2 a (succ m) c (succ l)))
+         (trans (assoc-mult (a * c) (succ m) (succ l)) (cong (λ x -> (a * c) * x) (lemma-*-3 m l))))) (
+       lemma-*-1 x y))
+       (trans (trans (sym (assoc-mult (n * succ b) k (succ d))) (lemma-*-2 n (succ b) k (succ d)))
+         (trans (assoc-mult (n * k) (succ b) (succ d)) (cong (λ x -> (n * k) * x) (lemma-*-3 b d))))))
+
+_r*'_ : {n m k l : Nat} -> (p : Rat n m) -> (q : Rat k l) -> Rat (n * k) (m * l + m + l)
+_r*'_ {n} {m} {k} {l} (mkrat a b x) (mkrat c d y) = mkrat (a * c) (b * d + b + d) {!!}
+
+{-
+3/7 * 11/2 = 33/14
+Rat 3 6 * Rat 11 1 = Rat 33 13
+-}
+
+comm-rmult : {n m k l : Nat}(p : Rat n m )(q : Rat k l) -> eqc (p r* q) ~ eqc (q r* p)
+comm-rmult {n}{m}{k}{l} p q = rel (trans (trans
+  (trans (sym (cong (λ x -> (n * k) * x) (lemma-*-3 l m))) (sym (assoc-mult (n * k) (succ l) (succ m))))
+  (trans (trans (assoc-mult (n * k) (succ l) (succ m)) (cong (λ x -> x * (succ l * succ m))
+    (comm-mult n k))) (cong (λ x -> k * n * x) (lemma-*-3 l m))))
+  (cong (λ x -> (k * n) * x) (trans (sym (lemma-*-3 l m)) (trans (comm-mult (succ l) (succ m)) (lemma-*-3 m l)))))
+
+{- Some properties of our rational numbers -}
+
+identity : Nat -> Set
+identity m = Rat (succ m) m
+
+identity-proof : {n k l : Nat} -> (p : identity n) -> (q : Rat k l) -> eqc q ~ eqc (p r* q)
+identity-proof {n}{k}{l} (mkrat _ _ _) (mkrat _ _ _) = rel
+  (trans (cong (λ x -> k * x) (sym (lemma-*-3 n l)))
+         (trans (sym (assoc-mult k (succ n) (succ l)))
+                (cong (λ x -> x * succ l) (comm-mult k (succ n)))))
+
+inverse : {n m : Nat} -> (p : Rat (succ n) m) -> Set
+inverse {n} {m} p = Rat (succ m) n
+
+inverse-proof : {n m k : Nat} -> {id : identity k} -> (p : Rat (succ n) m) -> (q : inverse p) ->  eqc (p r* q) ~ eqc id
+inverse-proof {n} {m} {k} {id} p q = rel
+  (trans
+    (cong (λ x -> x * succ k) (comm-mult (succ n) (succ m)))
+    (trans
+      (comm-mult (succ m * succ n) (succ k))
+      (cong (λ x -> succ k * x) (lemma-*-3 m n))))
+
+mult-extension : (n m : Nat) -> eqc (inject (n * m)) ~ eqc ((inject n) r* (inject m))
+mult-extension n m = rel refl
+
+---------------------------------------------------
 
 2/2 : Rat 2 1
 2/2 = mkrat 2 1 (rel refl)
@@ -142,111 +205,6 @@ _r*_ {n}{m}{k}{l} (mkrat a b (rel x)) (mkrat c d (rel y)) = mkrat (a * c) (b * d
 
 1/1 : Rat 1 0
 1/1 = mkrat 1 0 (rel refl)
-
-{-
-lemma-rat-1 : (n m : Nat) -> n ≡ 0 + 0 * m -> n ≡ 0
-lemma-rat-1 .0 zero refl = refl
-lemma-rat-1 .(0 + (0 + 0 * m)) (succ m) refl = cong (λ x -> 0 + x) (lemma-rat-1 (0 + 0 * m) m refl)
-
-lemma-trans : {A : Set}{a b c : A} -> a ≡ b -> b ≡ c -> a ≡ c
-lemma-trans refl refl = refl
-
-lemma-comm : (n m a : Nat) -> n + m ≡ a -> m + n ≡ a
-lemma-comm n m a refl = comm-plus m n
-
-lemma-nat : (n : Nat) -> 0 * n ≡ 0
-lemma-nat n = comm-mult 0 n
-
-lemma-nat' : (n : Nat) -> 0 * ( 0 * n ) ≡ 0
-lemma-nat' n = lemma-nat (0 * n)
-
-lemma-nat-1 : (n m : Nat) -> 0 * n ≡ 0 * m
-lemma-nat-1 zero m = comm-mult m zero
-lemma-nat-1 (succ n) m = lemma-comm (zero * n) zero (zero * m) (lemma-nat-1 n m)
-
-lemma-1 : (n m : Nat) -> (0 * m) * n ≡ 0
-lemma-1 n m = trans (assoc-mult 0 m n) (trans (comm-mult 0 (m * n)) refl)
-
-lemma' : (n m a c d : Nat) -> c * m ≡ n * d -> a * (c * m) ≡ a * (d * n)
-lemma' n m a c d x = cong (λ y -> a * y) (trans x (comm-mult n d))
-
-lemma'' : (n m a c d : Nat) -> a * (c * m) ≡ a * (d * n) -> a * (c * m) ≡ n * (a * d)
-lemma'' n m a c d x = trans x (trans (sym (assoc-mult a d n)) (comm-mult (a * d) n))
-
-test : (a b c : Nat) -> a * (b * c) ≡ a * (c * b)
-test a b c = cong (λ x -> a * x) (comm-mult b c)
-
-test' : (a b c : Nat) -> a * (b * c) ≡ a * (c * b) -> a * (b * c) ≡ (a * c) * b
-test' a b c x = trans x (sym (assoc-mult a c b))
-
-test'' : (a b c : Nat) -> a * (b * c) ≡ a * (c * b) -> a * (b * c) ≡ b * (a * c)
-test'' a b c x = {!!}
-
-
-lemma- : (a b c : Nat) -> a * (b * c) ≡ b * (a * c)
-lemma- a b c = {!!}
-
-lemma : (n m a b c d : Nat) -> c * m ≡ n * d -> a * m ≡ n * b -> a * d ≡ c * b
-lemma n m a b c d f g = {!!}
-
---rat-equiv : (n m : Nat) -> (p q : (Rat n m)) -> (rat p) ~ (rat q)
---rat-equiv n m (mkrat n₁ m₁ (rel x)) (mkrat n₂ m₂ (rel y)) = rel {!!}
--}
-{-
---rat-equiv zero zero (mkrat .(0 + 0 * m₁) m₁ (rel refl)) (mkrat .(0 + 0 * m₂) m₂ (rel refl)) = rel (trans (assoc-mult (0) (m₁ + 1) (m₂ + 1)) (trans (comm-mult 0 ((m₁ + 1) * (m₂ + 1))) {!!}))
-rat-equiv zero zero (mkrat .(0 + 0 * m₁) m₁ (rel refl)) (mkrat .(0 + 0 * m₂) m₂ (rel refl)) = rel (trans (lemma-1 (m₂ + 1) (m₁ + 1)) (trans (lemma-1 (m₁ + {!!}) {!!}) {!!}))
-rat-equiv zero (succ m) (mkrat n₁ m₁ x) (mkrat n₂ m₂ x₁) = rel {!!}
-rat-equiv (succ n) zero (mkrat n₁ m₁ x) (mkrat n₂ m₂ x₁) = rel {!!}
-rat-equiv (succ n) (succ m) (mkrat n₁ m₁ x) (mkrat n₂ m₂ x₁) = rel {!!}
--}
-{-
-1*1=1*1 : 1 * 1 ≡ 1 * 1
-1*1=1*1 = refl
-
-1*2=2*1 : 1 * 2 ≡ 2 * 1
-1*2=2*1 = refl
-
-1/1~1/1 : < 1 , 1 > ~ < 1 , 1 >
-1/1~1/1 = rel 1 1 1 1 refl
-
-1/1~2/2 : < 1 , 1 > ~ < 2 , 2 >
-1/1~2/2 = rel 1 1 2 2 refl
-
-¬1/1~2/1 : < 1 , 1 > ~ < 2 , 1 > -> ⊥
-¬1/1~2/1 (rel .1 .1 .2 .1 ())
-
-n+1=1+n : (n : Nat) -> succ n ≡ 1 + n
-n+1=1+n zero = refl
-n+1=1+n (succ n) = cong succ (n+1=1+n n)
-
-1+n=n+1 : (n : Nat) -> 1 + n ≡ succ n
-1+n=n+1 zero = refl
-1+n=n+1 (succ n) = cong succ (1+n=n+1 n)
-
-lemma : (n : Nat) -> 1 + 1 * n ≡ (succ (1 * n))
-lemma zero = refl
-lemma (succ n) = 1+n=n+1 (1 + 1 * n)
-
-lemma' : (n : Nat) -> (succ (1 * n)) ≡ 1 + 1 * n
-lemma' zero = refl
-lemma' (succ n) = n+1=1+n (1 + 1 * n)
-
-lemma-2 : (n m : Nat) -> n ≡ m -> succ n ≡ 1 + m
-lemma-2 zero .0 refl = refl
-lemma-2 (succ n) .(succ n) refl = cong succ (lemma-2 n n refl)
-
-
-n=1*n : (n : Nat) -> n ≡ 1 * n
-n=1*n zero = refl
-n=1*n (succ n) = lemma-2 n (1 * n) (n=1*n n) 
-
-lemma-3 : (n m : Nat) -> n ≡ m -> n ≡ 1 * m
-lemma-3 n .n refl = n=1*n n
-
-n/1~m/1 : {n m : Nat} -> n ≡ m -> < n , 1 > ~ < m , 1 >
-n/1~m/1 {n}{m} x = rel n 1 m 1 (lemma-3 n m x)
--}
-
 
 
 
