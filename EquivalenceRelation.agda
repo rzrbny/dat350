@@ -1,11 +1,9 @@
-module EquivalenceClass where
+module EquivalenceRelation where
 
 open import Bool
 open import Nat
-open import NatProofs
 open import Identity
 open import PropositionalLogic
-open import Product
 
 postulate comm-plus : (n m : Nat) -> n + m ≡ m + n
 postulate comm-mult : (n m : Nat) -> n * m ≡ m * n
@@ -88,6 +86,8 @@ lemma-3 a b c d e f x y = lemma-3-5 a b e f (lemma-3-4 a b d e f
 trans~ : {p q r : Nat × Nat} -> p ~ q -> q ~ r -> p ~ r
 trans~ {< a , b >} {< c , d >} {< e , f >} (rel x) (rel y) = rel (lemma-3 a (succ b) c d e (succ f) x y)
 
+cong~-mult : {n m k : Nat}{p : Nat × Nat} -> < n , m > ~ p -> < succ k * n , m + k + k * m > ~ p
+cong~-mult {n}{m}{k}{< a , b >} (rel x) = rel (trans (trans (assoc-mult (succ k) n (succ b)) (cong (\ y -> succ k * y) x)) {!-m -r!})
 
 {- equivalent class for above equivalence relation, rational numbers -}
 
@@ -95,10 +95,10 @@ data Rat : Nat -> Nat -> Set where
   mkrat : {a b : Nat} -> (n m : Nat) -> < n , m > ~ < a , b > -> Rat a b
 
 num : {n m : Nat} -> Rat n m -> Nat
-num (mkrat n _ _) = n
+num (mkrat a _ _) = a
 
 denom : {n m : Nat} -> Rat n m -> Nat
-denom (mkrat _ m _) = succ m
+denom (mkrat _ b _) = succ b
 
 rat : {n m : Nat} -> Rat n m -> Nat × Nat
 rat (mkrat a b _) = < a , b >
@@ -114,9 +114,6 @@ injection-proof (rel x) = x
 
 {- Arithmetics of rational numbers -}
 
-_t_ : {a : Nat} -> (b c : Nat) -> Nat
-_t_ {a} b c = {!!}
-
 lemma-*-1 : (a b c d : Nat) -> a ≡ b -> c ≡ d -> a * c ≡ b * d
 lemma-*-1 a .a c .c refl refl = refl
 
@@ -130,11 +127,10 @@ lemma-*-2-3 : (a b c : Nat) ->  (a * c) * b ≡ (a * b) * c
 lemma-*-2-3 a b c = trans (trans (assoc-mult a c b) (lemma-*-2-2 a b c)) (sym (assoc-mult a b c))
 
 lemma-*-2 : (a b c d : Nat) -> a * b * c * d ≡ a * c * b * d
-lemma-*-2 a b c d = cong (λ x -> x * d) (sym (lemma-*-2-3 a b c)) 
-
+lemma-*-2 a b c d = cong (λ x -> x * d) (sym (lemma-*-2-3 a b c))
 
 _r*_ : {n m k l : Nat} -> (p : Rat n m) -> (q : Rat k l) -> Rat (n * k) (m * l + m + l)
-_r*_ {n}{m}{k}{l} (mkrat a b (rel x)) (mkrat c d (rel y)) = mkrat (a * c) (b * d) (rel (trans (trans {!!} {!!}) {!!}))
+_r*_ {n}{m}{k}{l} (mkrat a b (rel x)) (mkrat c d (rel y)) = mkrat (a * c) (b * d) (rel {!!})
 
 ------------------------------------------
 
